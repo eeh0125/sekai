@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b5bd6">
+<title>세카이</title>
+<style>
+:root{--bg:#f6f6f9;--card:#fff;--tx:#1c1c28;--sub:#6b6b80;--pri:#5b5bd6;--bd:#e3e3ec;--ok:#2e9e5b}
+@media (prefers-color-scheme:dark){:root{--bg:#15151c;--card:#20202b;--tx:#ececf3;--sub:#9a9ab0;--pri:#8585f0;--bd:#33333f;--ok:#4cc380}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;display:flex;flex-direction:column;font-size:15px;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+header{background:var(--card);border-bottom:1px solid var(--bd);padding:10px 12px}
+h1{font-size:17px;margin:0}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-top:8px}
+.tab{border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:16px;padding:6px 12px;font-size:14px;white-space:nowrap;cursor:pointer}
+.tab.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+main{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+nav{display:flex;background:var(--card);border-top:1px solid var(--bd)}
+nav button{flex:1;border:0;background:none;color:var(--sub);padding:10px 0;font-size:13px;cursor:pointer}
+nav button.on{color:var(--pri);font-weight:700}
+.m{max-width:82%;display:flex;flex-direction:column}
+.m.me{align-self:flex-end;align-items:flex-end}
+.who,.t{font-size:11px;color:var(--sub);margin:2px 4px}
+.b{background:var(--card);border:1px solid var(--bd);padding:8px 12px;border-radius:14px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.me .b{background:var(--pri);color:#fff;border-color:var(--pri)}
+.b img{max-width:100%;max-height:260px;border-radius:8px;display:block;margin-top:6px}
+.empty{margin:auto;color:var(--sub);text-align:center;padding:20px}
+.bar{display:flex;gap:8px;padding:10px 12px;background:var(--card);border-top:1px solid var(--bd);align-items:flex-end}
+textarea,input[type=text],input[type=date],input[type=time]{border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:12px;padding:9px 12px;font:inherit;width:100%}
+.bar textarea{flex:1;resize:none;border-radius:18px;max-height:100px}
+button.pri,.ico{border:0;background:var(--pri);color:#fff;border-radius:18px;padding:9px 16px;font-size:15px;cursor:pointer}
+.ico{background:var(--bg);color:var(--tx);border:1px solid var(--bd);padding:9px 12px}
+button:disabled{opacity:.5}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font-size:16px}
+.opt{position:relative;border:1px solid var(--bd);border-radius:10px;padding:9px 12px;cursor:pointer;overflow:hidden;display:flex;justify-content:space-between;background:var(--bg)}
+.opt i{position:absolute;left:0;top:0;bottom:0;background:var(--pri);opacity:.18}
+.opt.on{border-color:var(--pri);font-weight:700}
+.opt span{position:relative}
+.sm{font-size:12px;color:var(--sub)}
+.row{display:flex;gap:8px}
+.go{border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:10px;padding:7px 12px;cursor:pointer}
+.go.on{background:var(--ok);color:#fff;border-color:var(--ok)}
+.del{background:none;border:0;color:var(--sub);font-size:12px;cursor:pointer;align-self:flex-end}
+#vp{background:var(--card);border-bottom:1px solid var(--bd);padding:8px 12px;display:none;flex-direction:column;gap:8px}
+.tiles{display:flex;gap:6px;flex-wrap:wrap}
+.tiles video{max-width:100%;max-height:220px;border-radius:10px;background:#000}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:20;padding:20px}
+.ov .card{width:100%;max-width:340px}
+</style>
+</head>
+<body>
+<header><div class="row" style="justify-content:space-between;align-items:center"><h1>🌐 세카이</h1><button class="ico" id="nickbtn" style="padding:4px 10px;font-size:13px">✏️ 닉네임</button></div><div class="tabs" id="tabs"></div></header>
+<div id="vp"></div>
+<main id="main"><div class="empty">불러오는 중…</div></main>
+<div class="bar" id="bar"><button class="ico" id="att">🖼</button><input type="file" id="file" accept="image/*" hidden><textarea id="inp" rows="1" placeholder="메시지 입력"></textarea><button class="pri" id="btn">전송</button></div>
+<nav id="nav"></nav>
+
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,GoogleAuthProvider,signInWithPopup,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,doc,setDoc,getDoc,deleteDoc,onSnapshot,query,orderBy,limit} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app=initializeApp({apiKey:"AIzaSyBxVk-Of_yN75KJ0qX6FjS7i_RliQ4VnsQ",authDomain:"sekai-2b3a8.firebaseapp.com",projectId:"sekai-2b3a8",storageBucket:"sekai-2b3a8.firebasestorage.app",messagingSenderId:"909025809329",appId:"1:909025809329:web:2607dd99063ad7fb6ce390"});
+const auth=getAuth(app),fdb=getFirestore(app);
+
+const CH=[["notice","📢 공지"],["general","💬 잡담"]];
+const VIEWS=[["chat","💬 채팅"],["project","🛠 프로젝트"],["poll","📊 투표"],["event","📅 일정"]];
+let view="chat",cur="general",uid=null,unsub=null,formOpen=false,editT=null,team=null,nickReady=false,admins=[],admin=false;
+let msgs=[],polls=[],votes=[],events=[],rsvps=[],teams=[],nicks={};
+const $=id=>document.getElementById(id);
+
+function h(tag,p,...kids){const e=document.createElement(tag);for(const k in(p||{})){if(k==="class")e.className=p[k];else if(k.startsWith("on"))e[k]=p[k];else e.setAttribute(k,p[k]);}kids.flat().forEach(c=>{if(c!=null)e.append(c.nodeType?c:document.createTextNode(c));});return e;}
+const nm=u=>nicks[u]||"이름없음";
+const fmt=ts=>{const d=new Date(ts);return d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");};
+const rid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const note=t=>$("main").replaceChildren(h("div",{class:"empty"},t));
+const write=async(c,id,d)=>{try{await setDoc(doc(fdb,c,id),d);}catch(e){alert("저장 실패: "+(e.code||e.message));}};
+const del=(c,id)=>deleteDoc(doc(fdb,c,id)).catch(()=>{});
+const watch=(c,assign,after)=>onSnapshot(collection(fdb,c),s=>{assign(s.docs.map(d=>({id:d.id,...d.data()})));after();},()=>{});
+
+/* 로그인 */
+async function login(){try{await signInWithPopup(auth,new GoogleAuthProvider());}catch(e){alert("로그인 실패: "+(e.code||e.message));}}
+function loginView(){$("bar").style.display="none";$("nav").replaceChildren();$("tabs").replaceChildren();
+  $("main").replaceChildren(h("div",{class:"card",style:"margin:auto;text-align:center"},h("h3",{},"세카이에 오신 걸 환영해요"),h("div",{class:"sm"},"동아리원만 쓰는 공간이에요"),h("button",{class:"pri",onclick:login},"Google로 시작하기")));}
+
+function drawNav(){$("nav").replaceChildren(...VIEWS.map(([k,n])=>h("button",{class:k===view?"on":"",onclick:()=>closeTeam(k)},n)));}
+function drawTabs(){const t=$("tabs");t.replaceChildren();if(view!=="chat")return;CH.forEach(([k,n])=>t.append(h("button",{class:"tab"+(k===cur?" on":""),onclick:()=>{cur=k;subChat();draw();}},n)));}
+function draw(){
+  if(!uid){loginView();return;}
+  drawNav();drawTabs();$("bar").style.display=(view==="chat"||team)?"flex":"none";$("vp").style.display=team?"flex":"none";drawVP();
+  if(nickReady&&!nicks[uid])askNick();
+  ({chat:drawChat,poll:drawPolls,event:drawEvents,project:drawProj})[view]();}
+
+/* 닉네임 */
+function askNick(){if($("nk"))return;const i=h("input",{type:"text",maxlength:"16",placeholder:"닉네임 (최대 16자)",value:nicks[uid]||""});
+  const ok=async()=>{const v=i.value.trim();if(!v)return;$("nk").remove();await write("nicks",uid,{nick:v});};
+  document.body.append(h("div",{class:"ov",id:"nk"},h("div",{class:"card"},h("h3",{},"닉네임을 정해주세요"),i,h("button",{class:"pri",onclick:ok},"확인"),nicks[uid]?h("button",{class:"del",onclick:()=>$("nk").remove()},"취소"):null)));}
+$("nickbtn").onclick=()=>uid&&askNick();
+
+/* 채팅 */
+function drawChat(){
+  const m=$("main");const near=m.scrollHeight-m.scrollTop-m.clientHeight<140;
+  if(!msgs.length){note("아직 메시지가 없어요. 첫 글을 남겨보세요!");return;}
+  m.replaceChildren(...msgs.map(x=>{const me=x.uid===uid;const b=h("div",{class:"b"},x.text||"");
+    if(x.img)b.append(h("img",{src:x.img,alt:"사진"}));
+    return h("div",{class:"m"+(me?" me":"")},me?null:h("div",{class:"who"},nm(x.uid)),b,h("div",{class:"t"},fmt(x.ts)));}));
+  if(near)m.scrollTop=m.scrollHeight;
+}
+function subChat(){
+  if(unsub)unsub();msgs=[];if(!uid)return;
+  unsub=onSnapshot(query(collection(fdb,"msgs_"+cur),orderBy("ts","desc"),limit(200)),s=>{msgs=s.docs.map(d=>d.data()).reverse();if(view==="chat"||team)drawChat();},e=>note("불러오기 실패: "+(e.code||"error")));
+}
+async function send(extra){
+  const text=$("inp").value.trim();if(!text&&!extra)return;$("btn").disabled=true;
+  await write("msgs_"+cur,rid(),Object.assign({uid,text,ts:Date.now()},extra||{}));
+  $("inp").value="";$("inp").style.height="";$("btn").disabled=false;
+}
+$("btn").onclick=()=>send();
+$("inp").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();send();}});
+$("inp").addEventListener("input",e=>{const t=e.target;t.style.height="auto";t.style.height=Math.min(t.scrollHeight,100)+"px";});
+$("att").onclick=()=>$("file").click();
+const shrink=f=>new Promise((ok,no)=>{const i=new Image();i.onload=()=>{const r=Math.min(1,800/Math.max(i.width,i.height));const c=document.createElement("canvas");c.width=i.width*r;c.height=i.height*r;c.getContext("2d").drawImage(i,0,0,c.width,c.height);ok(c.toDataURL("image/jpeg",.7));};i.onerror=no;i.src=URL.createObjectURL(f);});
+$("file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;$("att").textContent="⏳";
+  try{await send({img:await shrink(f)});}catch(err){alert("사진을 보낼 수 없어요");}
+  $("att").textContent="🖼";};
+
+/* 투표 */
+function drawPolls(){
+  const kids=[h("button",{class:"pri",onclick:()=>{formOpen=!formOpen;drawPolls();}},formOpen?"닫기":"+ 새 투표")];
+  if(formOpen){const q=h("input",{type:"text",placeholder:"질문 (예: 이번 MT 날짜?)"});const o=h("textarea",{rows:"4",placeholder:"선택지를 한 줄에 하나씩"});
+    kids.push(h("div",{class:"card"},q,o,h("button",{class:"pri",onclick:async()=>{const opts=o.value.split("\n").map(s=>s.trim()).filter(Boolean);if(!q.value.trim()||opts.length<2){alert("질문과 선택지 2개 이상 필요해요");return;}formOpen=false;await write("polls",rid(),{q:q.value.trim(),opts,by:uid,ts:Date.now()});}},"만들기")));}
+  [...polls].sort((a,b)=>b.ts-a.ts).forEach(p=>{
+    const pv=votes.filter(v=>v.poll===p.id);const mine=pv.find(v=>v.uid===uid);
+    kids.push(h("div",{class:"card"},h("h3",{},p.q),
+      p.opts.map((t,i)=>{const n=pv.filter(v=>v.opt===i).length;const pct=pv.length?Math.round(n/pv.length*100):0;
+        return h("div",{class:"opt"+(mine&&mine.opt===i?" on":""),onclick:()=>write("pollvotes",p.id+"_"+uid,{poll:p.id,uid,opt:i})},h("i",{style:"width:"+pct+"%"}),h("span",{},t),h("span",{},n+"표 ("+pct+"%)"));}),
+      h("div",{class:"sm"},"총 "+pv.length+"명 참여 · "+nm(p.by)),
+      (p.by===uid||admin)?h("button",{class:"del",onclick:()=>confirm("삭제할까요?")&&del("polls",p.id)},"삭제"):null));});
+  if(!polls.length)kids.push(h("div",{class:"empty"},"아직 투표가 없어요."));
+  $("main").replaceChildren(...kids);
+}
+
+/* 일정 + 출석 */
+function drawEvents(){
+  const kids=[h("button",{class:"pri",onclick:()=>{formOpen=!formOpen;drawEvents();}},formOpen?"닫기":"+ 새 일정")];
+  if(formOpen){const t=h("input",{type:"text",placeholder:"일정 이름 (예: 정기모임)"}),d=h("input",{type:"date"}),tm=h("input",{type:"time"}),pl=h("input",{type:"text",placeholder:"장소"});
+    kids.push(h("div",{class:"card"},t,h("div",{class:"row"},d,tm),pl,h("button",{class:"pri",onclick:async()=>{if(!t.value.trim()||!d.value){alert("이름과 날짜는 필요해요");return;}formOpen=false;await write("events",rid(),{title:t.value.trim(),date:d.value,time:tm.value,place:pl.value.trim(),by:uid,ts:Date.now()});}},"등록")));}
+  const today=new Date().toISOString().slice(0,10);
+  [...events].sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||""))).forEach(ev=>{
+    const rs=rsvps.filter(r=>r.ev===ev.id);const mine=rs.find(r=>r.uid===uid);const going=rs.filter(r=>r.going);
+    const set=g=>write("rsvp",ev.id+"_"+uid,{ev:ev.id,uid,going:g});
+    kids.push(h("div",{class:"card",style:ev.date<today?"opacity:.55":""},h("h3",{},ev.title),
+      h("div",{class:"sm"},"📅 "+ev.date+(ev.time?" "+ev.time:"")+(ev.place?" · 📍 "+ev.place:"")),
+      h("div",{class:"row"},h("button",{class:"go"+(mine&&mine.going?" on":""),onclick:()=>set(true)},"✅ 참석"),h("button",{class:"go"+(mine&&!mine.going?" on":""),onclick:()=>set(false)},"❌ 불참")),
+      h("div",{class:"sm"},"참석 "+going.length+"명"+(going.length?": "+going.map(r=>nm(r.uid)).join(", "):"")),
+      (ev.by===uid||admin)?h("button",{class:"del",onclick:()=>confirm("삭제할까요?")&&del("events",ev.id)},"삭제"):null));});
+  if(!events.length)kids.push(h("div",{class:"empty"},"아직 일정이 없어요."));
+  $("main").replaceChildren(...kids);
+}
+
+/* 프로젝트 팀 */
+function closeTeam(k){leaveVoice();team=null;editT=null;formOpen=false;if(String(cur).startsWith("t_")){cur="general";subChat();}view=k||view;draw();}
+function openTeam(t){team=t.id;cur="t_"+t.id;subChat();draw();}
+function teamForm(){const t=editT,sel=new Set(t.members||[]);const n=h("input",{type:"text",placeholder:"팀 이름",value:t.name||""});
+  const boxes=Object.keys(nicks).map(u=>{const c=h("input",{type:"checkbox"});c.checked=sel.has(u);c.onchange=()=>c.checked?sel.add(u):sel.delete(u);return h("label",{class:"row",style:"align-items:center"},c,nicks[u]);});
+  return h("div",{class:"card"},n,h("div",{class:"sm"},"멤버 선택 (닉네임을 정한 사람만 보여요)"),boxes,h("button",{class:"pri",onclick:async()=>{if(!n.value.trim())return;const id=t.id||rid();editT=null;await write("teams",id,{name:n.value.trim(),members:[...sel],by:t.by||uid,ts:t.ts||Date.now()});}},"저장"),t.id?h("button",{class:"del",onclick:()=>{if(confirm("팀 삭제?")){editT=null;del("teams",t.id);}}},"팀 삭제"):null);}
+function adminCard(){return h("div",{class:"card"},h("h3",{},"👑 방장 관리"),Object.keys(nicks).map(u=>{const on=admins.includes(u);
+  return h("div",{class:"row",style:"align-items:center;justify-content:space-between"},h("span",{},nicks[u]+(u===uid?" (나)":"")),h("button",{class:"go"+(on?" on":""),onclick:()=>{const l=on?admins.filter(x=>x!==u):[...admins,u];if(!l.length){alert("방장이 최소 1명은 있어야 해요");return;}write("config","admins",{uids:l});}},on?"방장":"방장 지정"));}));}
+function drawProj(){
+  if(team){const t=teams.find(x=>x.id===team);if(t&&(admin||(t.members||[]).includes(uid))){drawChat();return;}team=null;}
+  const kids=[];
+  if(admin)kids.push(h("button",{class:"pri",onclick:()=>{editT=editT?null:{};draw();}},editT?"닫기":"+ 팀 만들기"));
+  if(editT)kids.push(teamForm());
+  const mine=teams.filter(t=>admin||(t.members||[]).includes(uid));
+  mine.forEach(t=>kids.push(h("div",{class:"card"},h("h3",{},"👥 "+t.name),h("div",{class:"sm"},(t.members||[]).map(nm).join(", ")||"멤버 없음"),h("div",{class:"row"},h("button",{class:"pri",onclick:()=>openTeam(t)},"입장"),admin?h("button",{class:"go",onclick:()=>{editT=t;draw();}},"편집"):null))));
+  if(!mine.length)kids.push(h("div",{class:"empty"},admin?"팀을 만들어 멤버를 묶어보세요.":"아직 배정된 팀이 없어요. 방장에게 요청하세요."));
+  if(admin)kids.push(adminCard());
+  $("main").replaceChildren(...kids);}
+
+/* 음성 + 화면공유 (WebRTC, 신호는 Firestore로 교환) */
+const voice={on:false,pcs:{},tiles:h("div",{class:"tiles"}),mic:null,scr:null,me:null,unsub:null,t0:0};
+function drawVP(){const v=$("vp");if(!team){v.replaceChildren();return;}const t=teams.find(x=>x.id===team);
+  v.replaceChildren(h("div",{class:"row",style:"align-items:center;justify-content:space-between"},h("b",{},"👥 "+(t?t.name:"")),h("button",{class:"go",onclick:()=>closeTeam("project")},"← 목록")),
+    h("div",{class:"row",style:"flex-wrap:wrap;align-items:center"},voice.on?h("button",{class:"go on",onclick:leaveVoice},"🎤 나가기"):h("button",{class:"go",onclick:joinVoice},"🎤 음성 참여"),voice.on?h("button",{class:"go"+(voice.scr?" on":""),onclick:toggleScreen},voice.scr?"🖥 공유 중지":"🖥 화면공유"):null,voice.on?h("span",{class:"sm"},"연결 "+Object.keys(voice.pcs).length+"명"):null),voice.tiles);}
+const sig=(to,d)=>write("sig_"+team,rid(),Object.assign({to,from:voice.me,ts:Date.now()},d));
+async function joinVoice(){
+  try{voice.mic=await navigator.mediaDevices.getUserMedia({audio:true});}catch(e){alert("마이크를 쓸 수 없어요 (권한 확인)");return;}
+  voice.me=uid+"_"+rid();voice.on=true;voice.t0=Date.now()-3000;
+  voice.unsub=onSnapshot(collection(fdb,"sig_"+team),s=>s.docChanges().forEach(c=>{if(c.type==="added")onSig(c.doc);}));
+  sig("all",{k:"hi"});drawVP();}
+function mk(peer){
+  const pc=new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});voice.pcs[peer]=pc;
+  voice.mic.getTracks().forEach(t=>pc.addTrack(t,voice.mic));
+  if(voice.scr)voice.scr.getTracks().forEach(t=>pc.addTrack(t,voice.scr));
+  pc.onicecandidate=e=>e.candidate&&sig(peer,{k:"ice",c:JSON.parse(JSON.stringify(e.candidate.toJSON()))});
+  pc.onnegotiationneeded=async()=>{try{if(pc.signalingState!=="stable")return;await pc.setLocalDescription();sig(peer,{k:"sdp",sdp:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}});}catch(e){}};
+  pc.ontrack=e=>{const s=e.streams[0];if(!s)return;let el=document.getElementById("s"+s.id);if(!el){el=h("video",{id:"s"+s.id,autoplay:"",playsinline:""});el.srcObject=s;voice.tiles.append(el);s.onremovetrack=()=>{if(!s.getTracks().length)el.remove();};}
+    el.style.display=s.getVideoTracks().length?"":"none";};
+  pc.onconnectionstatechange=()=>{if(["failed","closed"].includes(pc.connectionState)&&voice.pcs[peer]===pc){pc.close();delete voice.pcs[peer];}drawVP();};
+  return pc;}
+async function onSig(ds){const d=ds.data();if(!voice.on||!d||d.from===voice.me||d.ts<voice.t0)return;
+  if(d.k==="hi"){if(voice.pcs[d.from]){voice.pcs[d.from].close();delete voice.pcs[d.from];}mk(d.from);return;}
+  if(d.to!==voice.me)return;deleteDoc(ds.ref).catch(()=>{});
+  const pc=voice.pcs[d.from]||mk(d.from);
+  try{
+    if(d.k==="sdp"){const off=d.sdp.type==="offer";const clash=off&&pc.signalingState!=="stable";if(clash&&voice.me<d.from)return;if(clash)await pc.setLocalDescription({type:"rollback"});
+      await pc.setRemoteDescription(d.sdp);(pc._q||[]).forEach(c=>pc.addIceCandidate(c));pc._q=[];
+      if(off){await pc.setLocalDescription();sig(d.from,{k:"sdp",sdp:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}});}}
+    else if(d.k==="ice"){if(pc.remoteDescription)await pc.addIceCandidate(d.c);else(pc._q=pc._q||[]).push(d.c);}
+  }catch(e){}}
+async function toggleScreen(){
+  if(voice.scr){stopScr();return;}
+  try{voice.scr=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});}catch(e){alert("화면공유를 쓸 수 없어요 (컴퓨터 브라우저에서만 돼요)");return;}
+  voice.scr.getVideoTracks()[0].onended=stopScr;
+  Object.values(voice.pcs).forEach(pc=>voice.scr.getTracks().forEach(t=>pc.addTrack(t,voice.scr)));drawVP();}
+function stopScr(){if(!voice.scr)return;const ts=voice.scr.getTracks();Object.values(voice.pcs).forEach(pc=>pc.getSenders().forEach(s=>{if(s.track&&ts.includes(s.track))pc.removeTrack(s);}));ts.forEach(t=>t.stop());voice.scr=null;drawVP();}
+function leaveVoice(){if(!voice.on)return;if(voice.unsub)voice.unsub();Object.values(voice.pcs).forEach(p=>p.close());voice.pcs={};[voice.mic,voice.scr].forEach(s=>s&&s.getTracks().forEach(t=>t.stop()));voice.mic=voice.scr=null;voice.on=false;voice.tiles.replaceChildren();drawVP();}
+
+/* 시작 */
+let started=false;
+onAuthStateChanged(auth,async u=>{
+  if(!u){uid=null;draw();return;}
+  uid=u.uid;draw();
+  if(started)return;started=true;
+  try{const r=await getDoc(doc(fdb,"config","admins"));if(!r.exists())await setDoc(doc(fdb,"config","admins"),{uids:[uid]});}catch(e){}
+  subChat();
+  watch("config",a=>{const x=a.find(y=>y.id==="admins");admins=x?x.uids:[];admin=admins.includes(uid);},draw);
+  watch("polls",a=>polls=a,()=>view==="poll"&&drawPolls());
+  watch("pollvotes",a=>votes=a,()=>view==="poll"&&drawPolls());
+  watch("events",a=>events=a,()=>view==="event"&&drawEvents());
+  watch("rsvp",a=>rsvps=a,()=>view==="event"&&drawEvents());
+  watch("teams",a=>teams=a,()=>view==="project"&&draw());
+  watch("nicks",a=>{nicks={};a.forEach(x=>nicks[x.id]=x.nick);nickReady=true;},draw);
+});
+draw();
+</script>
+</body>
+</html>
